@@ -1,140 +1,192 @@
+import csv
+import logging
+import psycopg2
+import time
+from datetime import date
+from datetime import datetime
 
-from pydrive2.auth import GoogleAuth
-from pydrive2.drive import GoogleDrive
-from pydrive2.files import FileNotUploadedError
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
-directorio_credenciales = 'credentials_module.json'
+from datetime import date
+from datetime import datetime
 
-# INICIAR SESION
-def login():
-    GoogleAuth.DEFAULT_SETTINGS['client_config_file'] = directorio_credenciales
-    gauth = GoogleAuth()
-    gauth.LoadCredentialsFile(directorio_credenciales)
-    
-    if gauth.credentials is None:
-        gauth.LocalWebserverAuth(port_numbers=[8092])
-    elif gauth.access_token_expired:
-        gauth.Refresh()
-    else:
-        gauth.Authorize()
+#Exportar tablas
+#Logs
+
+
+while True:
+
+    logging.basicConfig(filename="logFile.txt",
+                format="%(asctime)s %(name)s:%(levelname)s:%(message)s",
+                   datefmt="%d-%m-%Y %H:%M:%S %p",
+                   level=logging.DEBUG
+                   )
+
+
+    logging.info('Ejecuntando la aplicación')
+
+    conn = psycopg2.connect(
+    host="localhost",
+    database="rest-market",
+    user="Rodrigo",
+    password="password",
+    port= "5432")
+
+    if(not conn):
+        logging.eror('No se pudo conectar a la base de datos')
+
+    logging.debug('Conexión exitosa')
+
+    def consulta_tablas():
+        cur1=conn.cursor()
+
+        cur1.execute('SELECT * FROM "Customers"')
+
+        datosCustomer = cur1.fetchall()
+
+        cur1.close()
+        logging.debug('Select * FROM "Customers" Exitoso')
+        return datosCustomer
+
+
+
+    def consulta_tablas2():
+        cur2=conn.cursor()
+
+        cur2.execute('SELECT * FROM "Employees"')
+
+        datosEmployees = cur2.fetchall()
         
-    gauth.SaveCredentialsFile(directorio_credenciales)
-    credenciales = GoogleDrive(gauth)
-    return credenciales
+        cur2.close()    
+        logging.debug('Select * FROM "Employees" Exitoso')
+        return datosEmployees
 
-def crear_archivo_texto(nombre_archivo,contenido,id_folder):
-    credenciales = login()
-    archivo = credenciales.CreateFile({'title': nombre_archivo,\
-                                       'parents': [{"kind": "drive#fileLink",\
+    def consulta_tablas3():
+        cur3=conn.cursor()
+
+        cur3.execute('SELECT * FROM "Foods"')
+
+        datosFoods = cur3.fetchall()
+        
+        cur3.close()    
+        logging.debug('Select * FROM "Foods" Exitoso')
+        return datosFoods
+
+    def consulta_tablas4():
+        cur4=conn.cursor()
+
+        cur4.execute('SELECT * FROM "Products"')
+
+        datosProducts = cur4.fetchall()
+        
+        cur4.close()    
+        logging.debug('Select * FROM "Products" Exitoso')
+        conn.close()
+        return datosProducts
+
+    Tablas = consulta_tablas()
+    Tablas2 = consulta_tablas2()
+    Tablas3 = consulta_tablas3()
+    Tablas4 = consulta_tablas4()
+  #Día actual
+    today = date.today()
+
+    #Fecha actual
+    now = datetime.now()
+    year = now.strftime("%Y")
+    month = now.strftime("%m")
+    day = now.strftime("%d")
+
+    hour = now.strftime("%H")
+    minute = now.strftime("%M")
+    second = now.strftime("%S")
+
+    Fecha = '{'+year+'}-{'+month+'}-{'+day+'}-{'+month+'}-{'+hour+'}-{'+minute+'}-{'+second+'}'
+
+    with open('customers_'+Fecha +'.csv','w', newline='') as file:
+        writer = csv.writer(file,delimiter=';')
+        Customers =  writer.writerows(Tablas).__str__()
+
+    with open('employees_'+Fecha +'.csv','w', newline='') as file:
+        writer = csv.writer(file,delimiter=';')
+        Employees =writer.writerows(Tablas2)
+        Foods= writer.writerows(Tablas3)
+        Products=writer.writerows(Tablas4).__str__()
+
+    with open('foods_'+Fecha +'.csv','w', newline='') as file:
+        writer = csv.writer(file,delimiter=';')
+        Foods= writer.writerows(Tablas3)
+        Products=writer.writerows(Tablas4).__str__()
+
+    with open('products_'+Fecha +'.csv','w', newline='') as file:
+        writer = csv.writer(file,delimiter=';')
+        Products=writer.writerows(Tablas4).__str__()
+
+  
+
+    #INICIAR SESION
+    directorio_credencial = 'credentials_module.json'
+
+
+    def login():
+        gauth = GoogleAuth()
+        gauth.LoadCredentialsFile(directorio_credencial)
+
+        if gauth.access_token_expired:
+            gauth.Refresh()
+            gauth.SaveCredentialsFile(directorio_credencial)
+        else:
+            gauth.Authorize()
+
+        return GoogleDrive(gauth)
+
+    #Crear archivo
+    def crear_archivo_texto(nombre_archivo,contenido,id_folder):
+        logging.warning('Necesitas estar conectado a internet')
+        credenciales = login()
+        archivo = credenciales.CreateFile({'title': nombre_archivo,\
+                                        'parents': [{"kind": "drive#fileLink",\
+                                                        "id": id_folder}]})
+        archivo.SetContentString(contenido)
+        archivo.Upload()
+
+    def subir_archivo(ruta_archivo,id_folder):
+        credenciales = login()
+        archivo = credenciales.CreateFile({'parents': [{"kind": "drive#fileLink",\
                                                     "id": id_folder}]})
-    archivo.SetContentString('Hey MoonCoders!')
-    archivo.Upload()
+        archivo['title'] = ruta_archivo.split("/")[-1]
+        archivo.SetContentFile(ruta_archivo)
+        archivo.Upload()
+
+    subir_archivo('customers_'+Fecha +'.csv','1vfyZ75fwotCgiNWWE5rifmGLTZjqaRdJ')
+    subir_archivo('employees_'+Fecha +'.csv','1vfyZ75fwotCgiNWWE5rifmGLTZjqaRdJ')
+    subir_archivo('foods_'+Fecha +'.csv','1vfyZ75fwotCgiNWWE5rifmGLTZjqaRdJ')
+    subir_archivo('products_'+Fecha +'.csv','1vfyZ75fwotCgiNWWE5rifmGLTZjqaRdJ')
+   
 
 
-# SUBIR UN ARCHIVO A DRIVE
-def subir_archivo(ruta_archivo,id_folder):
-    credenciales = login()
-    archivo = credenciales.CreateFile({'parents': [{"kind": "drive#fileLink",\
-                                                    "id": id_folder}]})
-    archivo['title'] = ruta_archivo.split("/")[-1]
-    archivo.SetContentFile(ruta_archivo)
-    archivo.Upload()
-
-# DESCARGAR UN ARCHIVO DE DRIVE POR ID
-def bajar_archivo_por_id(id_drive,ruta_descarga):
-    credenciales = login()
-    archivo = credenciales.CreateFile({'id': id_drive}) 
-    nombre_archivo = archivo['title']
-    archivo.GetContentFile(ruta_descarga + nombre_archivo)
-
-# BUSCAR ARCHIVOS
-def busca(query):
-    resultado = []
-    credenciales = login()
-    # Archivos con el nombre 'mooncode': title = 'mooncode'
-    # Archivos que contengan 'mooncode' y 'mooncoders': title contains 'mooncode' and title contains 'mooncoders'
-    # Archivos que NO contengan 'mooncode': not title contains 'mooncode'
-    # Archivos que contengan 'mooncode' dentro del archivo: fullText contains 'mooncode'
-    # Archivos en el basurero: trashed=true
-    # Archivos que se llamen 'mooncode' y no esten en el basurero: title = 'mooncode' and trashed = false
-    lista_archivos = credenciales.ListFile({'q': query}).GetList()
-    for f in lista_archivos:
-        # ID Drive
-        print('ID Drive:',f['id'])
-        # Link de visualizacion embebido
-        print('Link de visualizacion embebido:',f['embedLink'])
-        # Link de descarga
-        print('Link de descarga:',f['downloadUrl'])
-        # Nombre del archivo
-        print('Nombre del archivo:',f['title'])
-        # Tipo de archivo
-        print('Tipo de archivo:',f['mimeType'])
-        # Esta en el basurero
-        print('Esta en el basurero:',f['labels']['trashed'])
-        # Fecha de creacion
-        print('Fecha de creacion:',f['createdDate'])
-        # Fecha de ultima modificacion
-        print('Fecha de ultima modificacion:',f['modifiedDate'])
-        # Version
-        print('Version:',f['version'])
-        # Tamanio
-        print('Tamanio:',f['fileSize'])
-        resultado.append(f)
-    
-    return resultado
-
-# DESCARGAR UN ARCHIVO DE DRIVE POR NOMBRE
-def bajar_acrchivo_por_nombre(nombre_archivo,ruta_descarga):
-    credenciales = login()
-    lista_archivos = credenciales.ListFile({'q': "title = '" + nombre_archivo + "'"}).GetList()
-    if not lista_archivos:
-        print('No se encontro el archivo: ' + nombre_archivo)
-    archivo = credenciales.CreateFile({'id': lista_archivos[0]['id']}) 
-    archivo.GetContentFile(ruta_descarga + nombre_archivo)
-
-# BORRAR/RECUPERAR ARCHIVOS
-def borrar_recuperar(id_archivo):
-    credenciales = login()
-    archivo = credenciales.CreateFile({'id': id_archivo})
-    # MOVER A BASURERO
-    archivo.Trash()
-    # SACAR DE BASURERO
-    archivo.UnTrash()
-    # ELIMINAR PERMANENTEMENTE
-    archivo.Delete()
-
-# CREAR CARPETA
-def crear_carpeta(nombre_carpeta,id_folder):
-    credenciales = login()
-    folder = credenciales.CreateFile({'title': nombre_carpeta, 
-                               'mimeType': 'application/vnd.google-apps.folder',
-                               'parents': [{"kind": "drive#fileLink",\
-                                                    "id": id_folder}]})
-    folder.Upload()
-
-# MOVER ARCHIVO
-def mover_archivo(id_archivo,id_folder):
-    credenciales = login()
-    archivo = credenciales.CreateFile({'id': id_archivo})
-    propiedades_ocultas = archivo['parents']
-    archivo['parents'] = [{'isRoot': False, 
-                           'kind': 'drive#parentReference', 
-                           'id': id_folder, 
-                           'selfLink': 'https://www.googleapis.com/drive/v2/files/' + id_archivo + '/parents/' + id_folder,
-                           'parentLink': 'https://www.googleapis.com/drive/v2/files/' + id_folder}]
-    archivo.Upload(param={'supportsTeamDrives': True})
 
 
-if __name__ == "__main__":
-    ruta_archivo = '/home/falv/Escritorio/fondo.jpg'
-    id_folder = '0AI_9cD6f9EEZUk9PVA'
-    id_drive = '1LVdc-DUwr30kfrA30cVO3K92RVh56pmw'
-    ruta_descarga = '/home/falv/Descargas/'
-    #crear_archivo_texto('HolaDrive.txt','Hey MoonCoders',id_folder)
-    #subir_archivo(ruta_archivo,id_folder)
-    #bajar_archivo_por_id(id_drive,ruta_descarga)
-    #busca("title = 'mooncode.png'")
-    #bajar_acrchivo_por_nombre('Logo_1.png',ruta_descarga)
-    #borrar_recuperar('1lHBMFjdyKfAYRa4M57biDZCiDwFhAYTy')
-    #crear_carpeta('hola_folder',id_folder)
-    mover_archivo('1PmdkaivVUZKkDwFapSWrXNf6n6pO_YK-','1uSMaBaoLOt7F7VJiCZkrO4ckvj6ANecQ')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    time.sleep(600)
